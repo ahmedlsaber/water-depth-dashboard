@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Water Depth Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 text-gray-800">
+    <div class="container mx-auto p-4">
+      <h1 class="text-3xl font-bold mb-6 text-center">💧 Water Depth Monitoring</h1>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Edge Sensor -->
+        <div class="bg-white rounded-2xl shadow p-6">
+          <h2 class="text-xl font-semibold mb-2">Edge Point Sensor</h2>
+          <p class="text-4xl font-bold text-blue-600" id="edgeDepth">-- cm</p>
+          <div class="mt-4">
+            <p class="text-sm">Min: <span id="edgeMin">--</span> cm | Max: <span id="edgeMax">--</span> cm</p>
+            <h3 class="text-sm font-medium text-gray-500 mt-2">History</h3>
+            <ul id="edgeHistory" class="text-sm mt-1 space-y-1 max-h-40 overflow-y-auto"></ul>
+          </div>
+        </div>
+
+        <!-- Middle Sensor -->
+        <div class="bg-white rounded-2xl shadow p-6">
+          <h2 class="text-xl font-semibold mb-2">Middle Point Sensor</h2>
+          <p class="text-4xl font-bold text-green-600" id="middleDepth">-- cm</p>
+          <div class="mt-4">
+            <p class="text-sm">Min: <span id="middleMin">--</span> cm | Max: <span id="middleMax">--</span> cm</p>
+            <h3 class="text-sm font-medium text-gray-500 mt-2">History</h3>
+            <ul id="middleHistory" class="text-sm mt-1 space-y-1 max-h-40 overflow-y-auto"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 bg-white rounded-2xl shadow p-6 text-center">
+        <h2 class="text-xl font-semibold mb-2">Average Depth</h2>
+        <p class="text-5xl font-bold text-purple-600" id="avgDepth">-- cm</p>
+      </div>
+    </div>
+
+    <script>
+      function getMinMax(data) {
+        if (data.length === 0) return ['--', '--'];
+        let min = Math.min(...data.map(d => d.depth));
+        let max = Math.max(...data.map(d => d.depth));
+        return [min.toFixed(2), max.toFixed(2)];
+      }
+
+      async function fetchData() {
+        const res = await fetch('/api/readings');
+        const data = await res.json();
+
+        const edgeData = data.filter(item => item.sensor === 'edge');
+        const middleData = data.filter(item => item.sensor === 'middle');
+
+        const lastEdge = edgeData.at(-1)?.depth ?? '--';
+        const lastMiddle = middleData.at(-1)?.depth ?? '--';
+
+        document.getElementById('edgeDepth').textContent = `${lastEdge} cm`;
+        document.getElementById('middleDepth').textContent = `${lastMiddle} cm`;
+
+        document.getElementById('edgeHistory').innerHTML = edgeData.map(d => `<li>${d.timestamp}: ${d.depth} cm</li>`).reverse().join('');
+        document.getElementById('middleHistory').innerHTML = middleData.map(d => `<li>${d.timestamp}: ${d.depth} cm</li>`).reverse().join('');
+
+        const validDepths = [lastEdge, lastMiddle].filter(d => typeof d === 'number');
+        const avg = validDepths.length === 2 ? (lastEdge + lastMiddle) / 2 : '--';
+        document.getElementById('avgDepth').textContent = typeof avg === 'number' ? `${avg.toFixed(2)} cm` : '-- cm';
+
+        const [minEdge, maxEdge] = getMinMax(edgeData);
+        const [minMiddle, maxMiddle] = getMinMax(middleData);
+
+        document.getElementById('edgeMin').textContent = minEdge;
+        document.getElementById('edgeMax').textContent = maxEdge;
+        document.getElementById('middleMin').textContent = minMiddle;
+        document.getElementById('middleMax').textContent = maxMiddle;
+      }
+
+      setInterval(fetchData, 2000);
+      fetchData();
+    </script>
+  </body>
+</html>
